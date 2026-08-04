@@ -504,9 +504,12 @@ function render() {
   drawX += panX;
   drawY += panY;
 
-  // 约束位置：横向铺满、纵向不露出顶部黑条与底部黑边
+  // 约束位置：横向铺满；纵向图片上沿不进入刘海区域：
+  // 上限取刘海底边（预览白框下沿），黑条滑块调得比刘海更低时则跟随黑条；
+  // 图片较小时可在「限位 ~ 贴画布底部」间滑动，较大时钉死在限位处
+  const topLimit = Math.min(stripHeight, currentModel.notchH);
   drawX = clampRange(drawX, width - drawWidth, 0);
-  drawY = clampRange(drawY, height - drawHeight, stripHeight);
+  drawY = clampRange(drawY, topLimit, Math.max(topLimit, height - drawHeight));
   panX = drawX - (alignX === 'left' ? 0 : alignX === 'right' ? width - drawWidth : (width - drawWidth) / 2);
   panY = drawY - (alignY === 'top' ? stripHeight : alignY === 'bottom' ? height - drawHeight : stripHeight + (availHeight - drawHeight) / 2);
 
