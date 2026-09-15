@@ -360,6 +360,19 @@
     </label>
 
     <div>
+      <label class="check-row">
+        <input type="checkbox" id="roundCorners">
+        <span>遮盖窗口圆角（四角涂黑）</span>
+      </label>
+      <div class="slider-row" id="cornerRadiusRow" style="margin-top: 10px;" hidden>
+        <span class="format-label" style="font-size: 12px; color: var(--text-dim); flex-shrink: 0;">圆角半径</span>
+        <input type="range" id="cornerRadius" min="0" max="120" step="2" value="24">
+        <span class="slider-value" id="cornerRadiusValue"></span>
+      </div>
+      <div class="anchor-hint">开启后壁纸四角涂黑，与最大化窗口的圆角互补，避免露色</div>
+    </div>
+
+    <div>
       <div class="format-row">
         <span class="format-label">导出格式</span>
         <button type="button" class="format-option active" data-format="png" title="无损，文件较大">PNG</button>
@@ -433,6 +446,8 @@ let panY = 0;
 let exportFormat = 'png';     // 导出格式：png / jpg
 let sourceFileBaseName = 'wallpaper'; // 原文件名（去扩展名），用于导出命名
 const JPG_QUALITY = 0.92;     // JPG 导出质量（黑条区纯黑，高质量下几乎无可见压缩痕迹）
+let roundCorners = false;     // 是否遮盖窗口圆角（四角涂黑）
+let cornerRadius = 24;        // 圆角半径（导出画布像素），与 macOS 窗口圆角对应
 
 /* 清理文件名中的非法字符（Windows/macOS 路径限制），空结果时给兜底值 */
 function sanitizeFileName(name, fallback) {
@@ -454,6 +469,10 @@ const zoomValue = document.getElementById('zoomValue');
 const fillZoneBtn = document.getElementById('fillZoneBtn');
 const anchorGrid = document.getElementById('anchorGrid');
 const showNotchCheckbox = document.getElementById('showNotch');
+const roundCornersCheckbox = document.getElementById('roundCorners');
+const cornerRadiusRow = document.getElementById('cornerRadiusRow');
+const cornerRadiusSlider = document.getElementById('cornerRadius');
+const cornerRadiusValue = document.getElementById('cornerRadiusValue');
 const downloadBtn = document.getElementById('downloadBtn');
 const outputInfo = document.getElementById('outputInfo');
 const previewCanvas = document.getElementById('previewCanvas');
@@ -514,6 +533,26 @@ function render() {
   panY = drawY - (alignY === 'top' ? stripHeight : alignY === 'bottom' ? height - drawHeight : stripHeight + (availHeight - drawHeight) / 2);
 
   exportCtx.drawImage(sourceImage, drawX, drawY, drawWidth, drawHeight);
+
+  // 遮盖窗口圆角：四角涂黑（与最大化窗口圆角互补，避免窗口四角露出壁纸颜色）
+  if (roundCorners && cornerRadius > 0) {
+    const r = cornerRadius;
+    exportCtx.fillStyle = '#000';
+    exportCtx.beginPath();
+    // 外框 + 中间反向圆角矩形空洞，按 evenodd 只填充四角月牙区域
+    exportCtx.rect(0, 0, width, height);
+    exportCtx.moveTo(r, 0);
+    exportCtx.lineTo(width - r, 0);
+    exportCtx.quadraticCurveTo(width, 0, width, r);
+    exportCtx.lineTo(width, height - r);
+    exportCtx.quadraticCurveTo(width, height, width - r, height);
+    exportCtx.lineTo(r, height);
+    exportCtx.quadraticCurveTo(0, height, 0, height - r);
+    exportCtx.lineTo(0, r);
+    exportCtx.quadraticCurveTo(0, 0, r, 0);
+    exportCtx.closePath();
+    exportCtx.fill('evenodd');
+  }
 
   updatePreview();
 }
@@ -741,6 +780,19 @@ stripSlider.addEventListener('input', () => {
   stripValue.textContent = `${stripSlider.value} px`;
   render();
 });
+
+/* 窗口圆角遮盖开关与半径调节 */
+roundCornersCheckbox.addEventListener('change', () => {
+  roundCorners = roundCornersCheckbox.checked;
+  cornerRadiusRow.hidden = !roundCorners;
+  render();
+});
+cornerRadiusSlider.addEventListener('input', () => {
+  cornerRadius = Number(cornerRadiusSlider.value);
+  cornerRadiusValue.textContent = `${cornerRadius} px`;
+  render();
+});
+cornerRadiusValue.textContent = `${cornerRadius} px`;
 
 /* 预览画布拖动平移：按预览/导出的缩放比换算成导出像素偏移 */
 let dragging = false;
