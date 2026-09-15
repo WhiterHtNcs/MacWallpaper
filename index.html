@@ -446,8 +446,8 @@ let panY = 0;
 let exportFormat = 'png';     // 导出格式：png / jpg
 let sourceFileBaseName = 'wallpaper'; // 原文件名（去扩展名），用于导出命名
 const JPG_QUALITY = 0.92;     // JPG 导出质量（黑条区纯黑，高质量下几乎无可见压缩痕迹）
-let roundCorners = false;     // 是否遮盖窗口圆角（四角涂黑）
-let cornerRadius = 24;        // 圆角半径（导出画布像素），与 macOS 窗口圆角对应
+let roundCorners = false;     // 是否遮盖窗口圆角（内容区四角涂黑）
+let cornerRadius = 24;        // 圆角半径（导出画布像素）：macOS 最大化窗口圆角约 10–12 pt，@2x 对应 20–24 px
 
 /* 清理文件名中的非法字符（Windows/macOS 路径限制），空结果时给兜底值 */
 function sanitizeFileName(name, fallback) {
@@ -534,22 +534,24 @@ function render() {
 
   exportCtx.drawImage(sourceImage, drawX, drawY, drawWidth, drawHeight);
 
-  // 遮盖窗口圆角：四角涂黑（与最大化窗口圆角互补，避免窗口四角露出壁纸颜色）
+  // 遮盖窗口圆角：对「黑条下沿以下的内容区域」四角涂黑（黑条下沿左右两角 + 屏幕底部两角），
+  // 与最大化窗口的圆角互补，避免窗口四角露出壁纸颜色。
+  // 外框整幅画布 + 内部反向圆角矩形空洞（洞顶 = 黑条下沿），按 evenodd 只填充洞外区域
   if (roundCorners && cornerRadius > 0) {
-    const r = cornerRadius;
+    const r = Math.min(cornerRadius, (width - stripHeight) / 2, (height - stripHeight) / 2);
+    const top = stripHeight;
     exportCtx.fillStyle = '#000';
     exportCtx.beginPath();
-    // 外框 + 中间反向圆角矩形空洞，按 evenodd 只填充四角月牙区域
     exportCtx.rect(0, 0, width, height);
-    exportCtx.moveTo(r, 0);
-    exportCtx.lineTo(width - r, 0);
-    exportCtx.quadraticCurveTo(width, 0, width, r);
+    exportCtx.moveTo(r, top);
+    exportCtx.lineTo(width - r, top);
+    exportCtx.quadraticCurveTo(width, top, width, top + r);
     exportCtx.lineTo(width, height - r);
     exportCtx.quadraticCurveTo(width, height, width - r, height);
     exportCtx.lineTo(r, height);
     exportCtx.quadraticCurveTo(0, height, 0, height - r);
-    exportCtx.lineTo(0, r);
-    exportCtx.quadraticCurveTo(0, 0, r, 0);
+    exportCtx.lineTo(0, top + r);
+    exportCtx.quadraticCurveTo(0, top, r, top);
     exportCtx.closePath();
     exportCtx.fill('evenodd');
   }
